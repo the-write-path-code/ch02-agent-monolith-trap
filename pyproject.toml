@@ -1,0 +1,13 @@
+[project]
+name = "docling-finance-poc"
+version = "0.1.0"
+description = "POC: parsing bank statement PDFs with Docling as a Google Document AI alternative"
+requires-python = ">=3.10"
+dependencies = [
+    "docling>=2.15.0",
+    "pandas>=2.2.0",
+    "reportlab>=4.2.0",
+]
+
+[tool.uv]
+package = false
