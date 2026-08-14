@@ -8,6 +8,7 @@ from pypdf import PdfReader
 
 AMOUNT_PATTERN = re.compile(r"-?\$[\d,]+\.\d{2}")
 DATE_LINE_PATTERN = re.compile(r"^\d{2}/\d{2}$")
+DATE_CELL_PATTERN = re.compile(r"^\d{2}/\d{2}(?:\s+\d{2}/\d{2})?$")
 
 
 @dataclass
@@ -30,33 +31,46 @@ def _dedupe_columns(columns) -> list:
     return deduped
 
 
-def _amount_column(df: pd.DataFrame):
-    """Guess which column holds dollar amounts by checking match rate."""
+def _best_matching_column(df: pd.DataFrame, pattern: re.Pattern, min_rate: float = 0.3):
+    """Find the column whose values best match a given pattern."""
     best_col, best_rate = None, 0.0
     for col in df.columns:
         values = df[col].astype(str).str.strip()
         non_empty = values[values != ""]
         if non_empty.empty:
             continue
-        rate = non_empty.str.match(AMOUNT_PATTERN).mean()
+        rate = non_empty.str.match(pattern).mean()
         if rate > best_rate:
             best_col, best_rate = col, rate
-    return best_col if best_rate >= 0.3 else None
+    return best_col if best_rate >= min_rate else None
 
 
 def _drop_header_and_section_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Keep only rows that carry a dollar amount.
+    """Keep only rows that look like an actual transaction: a date-shaped
+    cell in one column and a dollar-shaped cell in another.
 
     Multi-line table headers (a "Sale" / "Date" label split across two
-    physical rows) and section labels ("Standard Purchases", cardholder
-    names) carry no amount value, so this drops them instead of letting
-    them pollute the transaction set.
+    physical rows), section labels ("Standard Purchases", cardholder
+    names), and summary rows ("TOTAL FEES FOR THIS PERIOD ... $0.00",
+    an APR disclosure row) can all carry a dollar-shaped value in the
+    amount column, so filtering on the amount alone isn't enough. Adding
+    the date-column check screens those out too, since none of them
+    start with an MM/DD date the way a real transaction row does.
     """
-    amount_col = _amount_column(df)
+    amount_col = _best_matching_column(df, AMOUNT_PATTERN)
+    date_col = _best_matching_column(df, DATE_CELL_PATTERN)
+
     if amount_col is None:
         return df
-    values = df[amount_col].astype(str).str.strip()
-    mask = values.str.match(AMOUNT_PATTERN)
+
+    amount_mask = df[amount_col].astype(str).str.strip().str.match(AMOUNT_PATTERN)
+
+    if date_col is not None:
+        date_mask = df[date_col].astype(str).str.strip().str.match(DATE_CELL_PATTERN)
+        mask = amount_mask & date_mask
+    else:
+        mask = amount_mask
+
     return df[mask].reset_index(drop=True)
 
 
