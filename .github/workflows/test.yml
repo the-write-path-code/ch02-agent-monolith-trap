@@ -1,0 +1,31 @@
+name: Parser smoke test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies for OpenCV/Docling
+        run: sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Generate synthetic sample statement
+        run: uv run python make_sample_statement.py
+
+      - name: Parse sample statement
+        run: uv run python main.py sample_data/sample_statement.pdf

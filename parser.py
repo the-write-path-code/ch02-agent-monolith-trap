@@ -1,7 +1,19 @@
+import re
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 from docling.document_converter import DocumentConverter
+from pypdf import PdfReader
+
+AMOUNT_PATTERN = re.compile(r"-?\$[\d,]+\.\d{2}")
+DATE_LINE_PATTERN = re.compile(r"^\d{2}/\d{2}$")
+
+
+@dataclass
+class ParseResult:
+    tables: list
+    expected_transaction_count: int
 
 
 def _dedupe_columns(columns) -> list:
@@ -18,14 +30,68 @@ def _dedupe_columns(columns) -> list:
     return deduped
 
 
-def parse_statement(pdf_path: Path) -> list:
-    """Parse a bank statement PDF and return every table Docling detects.
+def _amount_column(df: pd.DataFrame):
+    """Guess which column holds dollar amounts by checking match rate."""
+    best_col, best_rate = None, 0.0
+    for col in df.columns:
+        values = df[col].astype(str).str.strip()
+        non_empty = values[values != ""]
+        if non_empty.empty:
+            continue
+        rate = non_empty.str.match(AMOUNT_PATTERN).mean()
+        if rate > best_rate:
+            best_col, best_rate = col, rate
+    return best_col if best_rate >= 0.3 else None
 
-    Bank statements often contain more than one table per document, e.g.
-    an account summary box plus the transaction ledger, and the ledger
-    itself may split across pages. We don't assume which table is the
-    one we want; we hand back all of them so the caller can inspect or
-    pick the right one.
+
+def _drop_header_and_section_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only rows that carry a dollar amount.
+
+    Multi-line table headers (a "Sale" / "Date" label split across two
+    physical rows) and section labels ("Standard Purchases", cardholder
+    names) carry no amount value, so this drops them instead of letting
+    them pollute the transaction set.
+    """
+    amount_col = _amount_column(df)
+    if amount_col is None:
+        return df
+    values = df[amount_col].astype(str).str.strip()
+    mask = values.str.match(AMOUNT_PATTERN)
+    return df[mask].reset_index(drop=True)
+
+
+def _count_likely_transaction_lines(pdf_path: Path) -> int:
+    """Independent sanity check: count date markers in the raw PDF text.
+
+    This reads the PDF's text layer directly with pypdf, bypassing
+    Docling's table-structure model entirely. Statements typically print
+    a bare "MM/DD" line immediately before each transaction's
+    description, sometimes twice in a row for a sale date and a post
+    date. Consecutive duplicate date lines are collapsed into one count
+    so a single transaction with two dates isn't counted twice. This is
+    a heuristic tied to this statement's layout, not a general-purpose
+    transaction counter, but a mismatch against the extracted row count
+    is a strong signal that the table model dropped or merged rows.
+    """
+    reader = PdfReader(str(pdf_path))
+    count = 0
+    prev_line = None
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if DATE_LINE_PATTERN.match(line):
+                if line != prev_line:
+                    count += 1
+                prev_line = line
+            else:
+                prev_line = None
+    return count
+
+
+def parse_statement(pdf_path: Path) -> ParseResult:
+    """Parse a bank statement PDF and return every table Docling detects,
+    plus an independent estimate of how many transaction rows to expect.
     """
     converter = DocumentConverter()
     result = converter.convert(str(pdf_path))
@@ -43,9 +109,16 @@ def parse_statement(pdf_path: Path) -> list:
     if not tables:
         raise ValueError(f"No tables detected in {pdf_path.name}")
 
-    return tables
+    expected = _count_likely_transaction_lines(pdf_path)
+    return ParseResult(tables=tables, expected_transaction_count=expected)
 
 
 def largest_table(tables: list) -> pd.DataFrame:
     """Heuristic: the transaction ledger is usually the table with the most rows."""
     return max(tables, key=len)
+
+
+def extract_transactions(tables: list) -> pd.DataFrame:
+    """Pick the likely ledger table and strip it down to real transaction rows."""
+    ledger = largest_table(tables)
+    return _drop_header_and_section_rows(ledger)
