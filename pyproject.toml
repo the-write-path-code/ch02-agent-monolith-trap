@@ -1,7 +1,7 @@
 [project]
-name = "docling-finance-poc"
+name = "ch2-agent-monolith-trap"
 version = "0.1.0"
-description = "POC: parsing bank statement PDFs with Docling as a Google Document AI alternative"
+description = "Companion code for Chapter 2 of The Write Path: three implementations of bank statement parsing, a self-correcting monolith, a deterministic Docling pipeline, and an ADK-orchestrated pipeline"
 requires-python = ">=3.10"
 dependencies = [
     "docling>=2.15.0",

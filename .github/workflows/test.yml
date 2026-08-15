@@ -25,7 +25,7 @@ jobs:
         run: uv sync
 
       - name: Generate synthetic sample statement
-        run: uv run python make_sample_statement.py
+        run: uv run python deterministic_pipeline/make_sample_statement.py
 
       - name: Parse sample statement
-        run: uv run python main.py sample_data/sample_statement.pdf
+        run: uv run python deterministic_pipeline/main.py sample_data/sample_statement.pdf
