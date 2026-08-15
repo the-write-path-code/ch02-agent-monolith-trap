@@ -1,6 +1,6 @@
 # ADK Pipeline (Section 2.4)
 
-This rebuilds the same mixed pipeline from `docs/pipeline.md` inside Google's Agent Development Kit, instead of the hand-wired Python function calls used in the Docling POC (Part 1). The architecture doesn't change; how it's orchestrated does.
+This rebuilds the same mixed pipeline from `docs/pipeline.md` inside Google's Agent Development Kit, instead of the hand-wired Python function calls used in the Section 2.3 pipeline. The architecture doesn't change; how it's orchestrated does.
 
 ## Why parsing still isn't an agent
 
@@ -39,8 +39,10 @@ This is written against the commonly documented `Agent` / `SequentialAgent` / `R
 
 ## Comparing this to the hand-wired version
 
-The Docling POC (Part 1 of this repo) passes a pandas DataFrame between plain Python functions, no real session state, no structured handoff protocol. This version uses ADK's `output_key` mechanism to pass state between agents and a session service that could, in principle, persist across multiple turns (e.g., "now ask a follow-up question about this statement"), which the hand-wired version has no way to do. That's the concrete payoff of 2.4 over 2.3: not better parsing, better orchestration of the exact same architecture.
+The hand-wired Section 2.3 pipeline passes a pandas DataFrame between plain Python functions, no real session state, no structured handoff protocol. This version uses ADK's `output_key` mechanism to pass state between agents and a session service that could, in principle, persist across multiple turns (e.g., "now ask a follow-up question about this statement"), which the hand-wired version has no way to do. That's the concrete payoff of 2.4 over 2.3: not better parsing, better orchestration of the exact same architecture.
 
 ## Note on the replica statement
 
-`make_citi_replica.py` reproduces the same dense, multi-section layout that exposed Docling's table-structure bug (documented in `docs/pipeline.md`: a dropped Pizza Hut row and a corrupted Park'N Go description) using fictional identity and account details. The merchants, dates, and amounts are preserved exactly, since they're generic business trade names, not personal data, so running the parser against this replica reproduces the same known failure safely and repeatably, without depending on an uncommitted real statement.
+`make_citi_replica.py` builds a sanitized version of the same dense, multi-section layout that exposed Docling's table-structure bug (documented in `docs/pipeline.md`: a dropped Pizza Hut row and a corrupted Park'N Go description), using fictional identity and account details. The merchants, dates, and amounts are preserved exactly, since they're generic business trade names, not personal data.
+
+Worth being direct about a limitation here: rebuilding the replica's table structure to match the real statement's actual layout, a single date column that sometimes holds one line of text and sometimes two, rather than the two-column approximation used in an earlier version, still did not reliably reproduce the original misparse in testing. Docling parsed the corrected replica cleanly. That suggests the original failure likely depends on something below the logical table structure, exact font metrics, character spacing, or how the source PDF's internal text-positioning objects are laid out, that a ReportLab-generated file doesn't replicate even when the row/column layout matches. Treat this replica as a demonstration of the structural pattern associated with the bug, not a guaranteed repro of it.

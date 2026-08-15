@@ -1,4 +1,4 @@
-# Parsing Pipeline
+# Docling Parsing Pipeline (Section 2.3)
 
 Two diagrams for the chapter. The first shows the pipeline as built. The second shows what actually happened when the pipeline was tested against a real Citi credit card statement, which is the failure case described in the text.
 
