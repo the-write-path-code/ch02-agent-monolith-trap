@@ -24,7 +24,7 @@ previous code back to the model]
     F --> C
     E -- No, out of attempts --> G[Run counts as a failure]
     E -- Yes --> H[Score against known ground truth]
-    H --> I[Compare across 5 runs
+    H --> I[Compare across 15 runs
 and across 4 complexity levels]
 ```
 
@@ -48,48 +48,22 @@ Each run is scored against the fixed 10-transaction ground truth by matching on 
 
 ## Results
 
-Run against `gemini-3.1-flash-lite`, temperature 0.7, 5 runs per level, max 3 attempts per run.
+Run against `gemini-3.1-flash-lite`, temperature 0.7, 15 runs per level, max 3 attempts per run. This supersedes an earlier 5-run pass that showed the same directional pattern with wider, less trustworthy confidence intervals.
 
-| Level | Description | Success rate | Avg attempts used | Avg matched / 10 | Distinct code versions |
-|---|---|---|---|---|---|
-| 1 | Clean | 100% | 1.0 | 10.0 | 5 of 5 |
-| 2 | Sectioned | 100% | 1.0 | 10.0 | 3 of 5 |
-| 3 | Dual dates + split header | 80% | 2.6 | 8.0 | 5 of 5 |
-| 4 | Dense / multi-section | 40% | 3.0 | 4.0 | 5 of 5 |
+| Level | Description | Success rate | Avg attempts used | Avg matched / 10 | Avg hallucinated | Distinct code versions |
+|---|---|---|---|---|---|---|
+| 1 | Clean | 100% | 1.0 | 10.0 | 0.0 | 10 of 15 |
+| 2 | Sectioned | 100% | 1.0 | 10.0 | 0.0 | 12 of 15 |
+| 3 | Dual dates + split header | 87% | 1.6 | 8.3 | 0.0 | 15 of 15 |
+| 4 | Dense / multi-section | 47% | 2.6 | 2.7 | 0.3 | 15 of 15 |
 
-Success rate, attempts required, and matched-transaction count all degrade monotonically as layout complexity increases, on identical underlying data. Only the page layout changed between levels.
+Success rate, attempts required, and matched-transaction count all degrade as layout complexity increases, on identical underlying data. Only the page layout changed between levels.
 
-The detail worth calling out specifically: at level 4, every run, successes and failures alike, used all 3 attempts. The model never got the parsing code right on its first try at this complexity level, and even with the exact error message fed back to it, self-correction only recovered a working result 2 times out of 5. That's the concrete version of "identical input, different output": the same PDF, the same prompt, the same error-correction opportunity, produced a working parser three-fifths of the time and a complete miss two-fifths of the time.
+Level 4 is the clearest evidence for the chapter's claim. Success dropped to under half (47%), average attempts climbed to 2.6 out of a maximum of 3, average matched transactions fell to 2.7 out of 10, and hallucinated rows appeared for the first time (0.3 average), meaning the model started inventing transactions that don't exist in the source document, not just missing real ones. A parser that runs without crashing and returns non-empty JSON is not the same thing as a parser that's correct; "success" by the crash/valid-JSON bar and "success" by the matched-transaction bar diverge sharply at this complexity level.
 
-Code-hash diversity is a weaker, secondary signal here. Level 2's "3 of 5" distinct versions isn't necessarily meaningful with only 5 samples, since superficial code differences (variable names, formatting) don't imply functional differences. Success rate, attempts, and matched count are the metrics doing the real work in this table.
+Code-hash diversity climbs alongside the failure rate: level 1 saw 10 distinct implementations across 15 runs, level 4 saw 15 distinct implementations across 15 runs, meaning no two runs converged on the same code at all at the highest complexity level. That's the concrete form of "identical input, different output": not just different wording, but a different program written each time, with correctness becoming a coin flip rather than a guarantee.
 
-Raw per-run data from this run:
-
-```csv
-level,level_name,run,success,attempts,extracted_count,matched_count,missed_count,hallucinated_count,code_hash
-1,Clean,1,True,1,10,10,0,0,a9b60fed47
-1,Clean,2,True,1,10,10,0,0,1d5189f8fb
-1,Clean,3,True,1,10,10,0,0,d1c3195da5
-1,Clean,4,True,1,10,10,0,0,98bef1c1a7
-1,Clean,5,True,1,10,10,0,0,c49971acdc
-2,Sectioned,1,True,1,10,10,0,0,2e1bc8e07b
-2,Sectioned,2,True,1,10,10,0,0,2e1bc8e07b
-2,Sectioned,3,True,1,10,10,0,0,2e1bc8e07b
-2,Sectioned,4,True,1,10,10,0,0,9f0dc31fd3
-2,Sectioned,5,True,1,10,10,0,0,e7a74dd066
-3,Dual dates + split header,1,True,3,10,10,0,0,1dd5dc39d0
-3,Dual dates + split header,2,True,3,10,10,0,0,235812c577
-3,Dual dates + split header,3,True,3,10,10,0,0,21a20cb871
-3,Dual dates + split header,4,True,1,10,10,0,0,9137afdc28
-3,Dual dates + split header,5,False,3,0,0,10,0,a00a06d9cf
-4,Dense / multi-section,1,True,3,10,10,0,0,0ea6116f72
-4,Dense / multi-section,2,True,3,10,10,0,0,2b0e83b46c
-4,Dense / multi-section,3,False,3,0,0,10,0,be995bff9d
-4,Dense / multi-section,4,False,3,0,0,10,0,fbaa1ca6ef
-4,Dense / multi-section,5,False,3,0,0,10,0,e09a5e9354
-```
-
-This is one run of a stochastic process; rerunning the experiment will produce different individual outcomes, though the same degradation pattern should hold given the same model and settings.
+Raw per-run data is available by rerunning the experiment; this repo doesn't commit the raw CSV by default since it regenerates on each run.
 
 ## Running it yourself
 
@@ -102,4 +76,4 @@ uv run python run_complexity_experiment.py
 
 Generated code executes in a subprocess with a timeout, not in a hardened sandbox. This is fine for a local demo against synthetic statements you generated yourself; don't run it against untrusted PDFs or on a machine you don't control.
 
-New results land in `results/complexity_results.csv` (raw per-run) and `results/complexity_results.md` (the summary table). Neither is committed to this repo by default; the numbers above are preserved directly in this file since they're the specific run referenced in the chapter.
+Results land in `results/complexity_results.csv` (raw per-run) and `results/complexity_results.md` (the summary table). Neither is committed to this repo by default; the numbers above are the specific run referenced in the chapter, preserved directly in this file.
