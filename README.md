@@ -1,6 +1,6 @@
 # Docling Finance Parser POC
 
-A minimal proof of concept for replacing Google Document AI with [Docling](https://github.com/docling-project/docling) (open-source, local, no API key) in the bank statement parsing step of [personal_finance_tracker](https://github.com/mohitagr18/personal_finance_tracker). It also includes a companion experiment showing why single-prompt agent designs get brittle as input complexity increases, the "before" case for the same chapter.
+A minimal proof of concept for replacing Google Document AI with [Docling](https://github.com/docling-project/docling) (open-source, local, no API key) in the bank statement parsing step of [personal_finance_tracker](https://github.com/mohitagr18/personal_finance_tracker). It also includes a companion experiment showing why single-model designs get brittle as input complexity increases, the "before" case for the same chapter.
 
 ## Part 1: Docling parsing POC
 
@@ -47,16 +47,14 @@ Tested against a real Citi credit card statement, the pipeline correctly extract
 
 ## Part 2: monolith complexity experiment
 
-This is the "before" case: a single, framework-free prompt asked to parse, categorize, and summarize a statement in one pass, tested against four synthetic statements of increasing layout complexity while holding the same 10 transactions constant. It uses the Gemini API directly, no AutoGen, no ADK, since the claim under test (single-prompt designs get brittle as complexity increases) doesn't depend on any orchestration framework.
+This is the "before" case: a single model, no agent framework, asked to write Python code that parses a statement, run that code, and fix its own code on failure, tested against four synthetic statements of increasing layout complexity while holding the same 10 transactions constant. This mirrors the actual mechanism that broke in the original hackathon project (a Data Analyzer agent writing parsing code, a Code Executor running it), not a simpler direct-extraction task, which an earlier version of this experiment tested and found too easy to show any brittleness at all. See `docs/monolith_experiment.md` for that finding and the full design.
 
 ### Setup
 
 ```
 cp .env.example .env
-# add your GOOGLE_API_KEY to .env
+# add your GOOGLE_API_KEY, optionally adjust MODEL_NAME and MAX_CODEGEN_ATTEMPTS
 ```
-
-`MODEL_NAME` in `.env` controls which Gemini model gets called (defaults to `gemini-2.0-flash`), so you can swap models without touching code.
 
 ### Run it
 
@@ -64,7 +62,7 @@ cp .env.example .env
 uv run python run_complexity_experiment.py
 ```
 
-This makes 20 API calls (4 complexity levels x 5 runs each) and writes `results/complexity_results.csv` (raw per-run data) and `results/complexity_results.md` (the summary table). See `docs/monolith_experiment.md` for the full design, the four complexity levels, and how scoring works.
+This makes up to 15 API calls per level (5 runs x up to 3 attempts each) and writes `results/complexity_results.csv` (raw per-run data) and `results/complexity_results.md` (the summary table). Generated code runs in a subprocess with a timeout, not a hardened sandbox, fine for synthetic statements you generated yourself, not for untrusted input.
 
 ## Next step
 
