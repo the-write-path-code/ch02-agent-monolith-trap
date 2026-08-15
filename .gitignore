@@ -1,8 +1,6 @@
 __pycache__/
 *.pyc
 .venv/
-sample_data/*.pdf
-sample_data/*.csv
 mock_data/
 results/
 .env
