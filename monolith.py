@@ -44,7 +44,7 @@ Your previous attempt failed. Here is the code you wrote:
 {previous_code}
 ---
 
-Here is the error it raised when run against the statement text above:
+Here is what went wrong when it ran against the statement text above:
 ---
 {error}
 ---
@@ -116,6 +116,12 @@ def _execute_code(code: str, statement_text: str) -> dict:
     syntax errors, and infinite loops (via a timeout) from the parent
     process. Do not run this against untrusted PDFs or on a machine you
     don't control; there is no hardened sandbox here.
+
+    An empty result list counts as a failure, not a pass. Every test
+    statement in this repo genuinely contains 10 transactions, so code
+    that runs without crashing but extracts nothing has parsing logic
+    that silently doesn't match the document, and that's a real failure
+    worth feeding back to the model, not a technicality to wave through.
     """
     harness = HARNESS_TEMPLATE.format(generated_code=code)
 
@@ -144,12 +150,26 @@ def _execute_code(code: str, statement_text: str) -> dict:
 
     try:
         transactions = json.loads(proc.stdout.strip())
-        return {"success": True, "transactions": transactions, "error": None}
     except json.JSONDecodeError as e:
         return {
             "success": False, "transactions": [],
             "error": f"Output wasn't valid JSON: {e}. Raw stdout: {proc.stdout[:500]}",
         }
+
+    if not transactions:
+        return {
+            "success": False, "transactions": [],
+            "error": (
+                "The function ran without error and returned valid JSON, but the "
+                "result was an empty list. The statement text passed to this "
+                "function does contain multiple transactions. Re-examine your "
+                "date/description/amount extraction logic, likely your row or "
+                "table-boundary detection isn't matching this document's actual "
+                "layout."
+            ),
+        }
+
+    return {"success": True, "transactions": transactions, "error": None}
 
 
 def run_codegen_monolith(pdf_path: Path, model_name: str = None, max_attempts: int = None) -> dict:
