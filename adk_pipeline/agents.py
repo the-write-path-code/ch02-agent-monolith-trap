@@ -8,15 +8,12 @@ or how to call the parser would reintroduce the exact risk section 2.3
 was built to remove. These two agents handle the parts that actually
 are reasoning tasks: categorizing transactions and summarizing them.
 
-Important: these agents read the transaction data from the conversation
-history (the initial user message, built in pipeline.py), not from a
-session-state key reference in the instruction text. An earlier version
-of this file told the model the data was "in state['parsed_statement']",
-which is just a string describing a location, it doesn't actually put
-any data in front of the model. That produced a fully fabricated report
-with numbers that didn't exist anywhere in the source document. Passing
-the real JSON directly in the message is what makes the model's output
-actually grounded in the parsed statement.
+These agents read the transaction data from the conversation history
+(the initial user message, built in pipeline.py), not from a
+session-state key reference in the instruction text. Passing the real
+JSON directly in the message is what makes the model's output actually
+grounded in the parsed statement, rather than trusting the model to
+resolve an instruction-text reference to a state key.
 """
 import os
 
@@ -37,9 +34,11 @@ categorizer_agent = Agent(
         "For each transaction, add a 'category' field (e.g. Groceries, "
         "Dining, Transfer, Income, Utilities, Subscription, Fees, Other) "
         "based on the description. Do not invent, drop, merge, or alter "
-        "any date, description, or amount, only add the category field. "
-        "Return ONLY the JSON list of transactions with categories added, "
-        "no markdown fences, no commentary, no summary text."
+        "any date, description, or amount, only add the category field.\n\n"
+        "CRITICAL OUTPUT FORMAT: return a bare JSON array, starting with "
+        "'[' and ending with ']'. Do NOT wrap it in an object with a "
+        "'transactions' key or any other key, and do not add markdown "
+        "fences or any commentary before or after the array."
     ),
     output_key="categorized_transactions",
 )

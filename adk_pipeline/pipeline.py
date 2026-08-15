@@ -58,15 +58,26 @@ def _strip_code_fences(text: str) -> str:
     return text.strip()
 
 
+def _coerce_to_list(parsed_json):
+    """Unwrap a dict-wrapped list if the model ignored the bare-array
+    instruction, e.g. it returned {"transactions": [...]} instead of
+    [...] directly. Falls back to the first list-valued field found.
+    """
+    if isinstance(parsed_json, list):
+        return parsed_json
+    if isinstance(parsed_json, dict):
+        for value in parsed_json.values():
+            if isinstance(value, list):
+                return value
+    raise ValueError(f"Expected a JSON list of transactions, got: {type(parsed_json).__name__}")
+
+
 async def run_pipeline(pdf_path: str) -> dict:
     """Parse deterministically, then run the two-agent pipeline on the result.
 
     The parsed data is embedded directly in the initial message sent to
-    the agents. This is deliberate: relying on the model to resolve an
-    instruction-text reference to a session-state key is fragile and,
-    in an earlier version of this file, silently failed, producing a
-    fully fabricated report. Putting the real JSON in the conversation
-    is what guarantees the model actually sees the real data.
+    the agents, rather than referenced through session state, so the
+    model always sees the real data instead of a broken text reference.
     """
     parsed = parse_bank_statement(pdf_path)
 
@@ -105,11 +116,12 @@ def _save_outputs(pdf_path: Path, result: dict):
     md_path = pdf_path.with_name(pdf_path.stem + "_report.md")
 
     try:
-        categorized = json.loads(result["categorized_text"])
+        parsed_json = json.loads(result["categorized_text"])
+        categorized = _coerce_to_list(parsed_json)
         pd.DataFrame(categorized).to_csv(csv_path, index=False)
         print(f"Saved categorized transactions to {csv_path}")
     except (json.JSONDecodeError, ValueError) as e:
-        print(f"WARNING: couldn't parse categorizer output as JSON ({e}), skipping CSV.")
+        print(f"WARNING: couldn't parse categorizer output as a transaction list ({e}), skipping CSV.")
         print(f"Raw categorizer output:\n{result['categorized_text'][:500]}")
 
     md_path.write_text(result["report_text"])
