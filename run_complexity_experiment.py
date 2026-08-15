@@ -5,7 +5,7 @@ from pathlib import Path
 from mock_statements import LEVELS, TRANSACTIONS, build_all
 from monolith import run_codegen_monolith
 
-RUNS_PER_LEVEL = 5
+RUNS_PER_LEVEL = 15
 RESULTS_CSV = Path(__file__).parent / "results" / "complexity_results.csv"
 RESULTS_MD = Path(__file__).parent / "results" / "complexity_results.md"
 
