@@ -1,6 +1,6 @@
 # Docling Finance Parser POC
 
-A minimal proof of concept for replacing Google Document AI with [Docling](https://github.com/docling-project/docling) (open-source, local, no API key) in the bank statement parsing step of [personal_finance_tracker](https://github.com/mohitagr18/personal_finance_tracker). It also includes a companion experiment showing why single-model designs get brittle as input complexity increases, the "before" case for the same chapter.
+A minimal proof of concept for replacing Google Document AI with [Docling](https://github.com/docling-project/docling) (open-source, local, no API key) in the bank statement parsing step of [personal_finance_tracker](https://github.com/mohitagr18/personal_finance_tracker). It also includes a companion experiment showing why single-model designs get brittle as input complexity increases, and an ADK rebuild of the full pipeline, the "before," "after," and "properly orchestrated" cases for the same chapter.
 
 ## Part 1: Docling parsing POC
 
@@ -31,7 +31,7 @@ uv run python make_sample_statement.py
 uv run python main.py sample_data/sample_statement.pdf
 ```
 
-Or point `main.py` at a real statement PDF.
+Or point `main.py` at a real statement PDF, or the sanitized replica from `make_citi_replica.py` (see Part 3).
 
 ### How parsing works
 
@@ -39,7 +39,7 @@ See `docs/pipeline.md` for a diagram of the full flow. In short: Docling detects
 
 ### Known limitations
 
-Tested against a real Citi credit card statement, the pipeline correctly extracted 13 of 14 transactions. One row was dropped entirely and one row's description was corrupted, both from Docling's table-structure model merging a two-line column header with the ledger and the surrounding fee/interest section into one detected table. See `docs/pipeline.md` for the full breakdown.
+Tested against a real Citi credit card statement, the pipeline correctly extracted 13 of 14 transactions. One row was dropped entirely and one row's description was corrupted, both from Docling's table-structure model merging a two-line column header with the ledger and the surrounding fee/interest section into one detected table. See `docs/pipeline.md` for the full breakdown, and `make_citi_replica.py` (Part 3) for a sanitized, shareable version of the statement that reproduces this same failure.
 
 ### CI
 
@@ -47,7 +47,7 @@ Tested against a real Citi credit card statement, the pipeline correctly extract
 
 ## Part 2: monolith complexity experiment
 
-This is the "before" case: a single model, no agent framework, asked to write Python code that parses a statement, run that code, and fix its own code on failure, tested against four synthetic statements of increasing layout complexity while holding the same 10 transactions constant. This mirrors the actual mechanism that broke in the original hackathon project (a Data Analyzer agent writing parsing code, a Code Executor running it), not a simpler direct-extraction task, which an earlier version of this experiment tested and found too easy to show any brittleness at all. See `docs/monolith_experiment.md` for that finding and the full design.
+This is the "before" case: a single model, no agent framework, asked to write Python code that parses a statement, run that code, and fix its own code on failure, tested against four synthetic statements of increasing layout complexity while holding the same 10 transactions constant. See `docs/monolith_experiment.md` for the full design and the 15-run results table.
 
 ### Setup
 
@@ -62,8 +62,19 @@ cp .env.example .env
 uv run python run_complexity_experiment.py
 ```
 
-This makes up to 15 API calls per level (5 runs x up to 3 attempts each) and writes `results/complexity_results.csv` (raw per-run data) and `results/complexity_results.md` (the summary table). Generated code runs in a subprocess with a timeout, not a hardened sandbox, fine for synthetic statements you generated yourself, not for untrusted input.
+## Part 3: ADK pipeline (2.4)
+
+The same mixed architecture as Part 1, a deterministic parse step feeding categorizer and reporter agents, rebuilt in Google's Agent Development Kit instead of hand-wired Python function calls. See `docs/adk_pipeline.md` for the design, why parsing still isn't an agent even here, and a note on ADK's API volatility.
+
+### Run it
+
+```
+uv run python make_citi_replica.py
+uv run python -m adk_pipeline.pipeline sample_data/citi_replica_statement.pdf
+```
+
+`make_citi_replica.py` generates a sanitized replica of the real dense statement layout that exposed Docling's table-structure bug, fictional name, address, and account numbers, real merchants/dates/amounts preserved, so the same known failure can be reproduced and shared safely.
 
 ## Next step
 
-If table extraction quality holds up across a few more real statement formats, port `parser.py`'s logic into `personal_finance_tracker/services/parser.py`, replacing the Document AI client call and removing the GCP dependency from that project's requirements. The monolith experiment's results feed directly into the chapter's 2.1-2.2 material; 2.3 reuses the Docling pipeline above as the "decompose, then match each node to the right tool" evidence.
+If table extraction quality holds up across a few more real statement formats, port `parser.py`'s logic into `personal_finance_tracker/services/parser.py`, replacing the Document AI client call and removing the GCP dependency from that project's requirements. The monolith experiment's results feed directly into the chapter's 2.1-2.2 material; Part 1 (Docling) covers 2.3; Part 3 (ADK) covers 2.4.
