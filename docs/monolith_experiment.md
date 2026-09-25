@@ -11,6 +11,7 @@ The first version of this experiment asked the model to read already-extracted s
 A single model writes a Python function that parses the statement text into transactions. That code gets executed in a subprocess. If it fails, either it throws an exception, times out, returns something that isn't valid JSON, or returns an empty list (an empty result counts as a failure here, since every test statement genuinely contains 10 transactions), the same model gets the error message and its own previous code, and tries again, up to a configurable number of attempts (`MAX_CODEGEN_ATTEMPTS` in `.env`, default 3). This is still a single, undifferentiated model doing everything, writing and implicitly debugging, with no separate specialized agents and no orchestration framework, which is what makes it "monolithic" in the chapter's sense.
 
 ```mermaid
+%%{init: {"theme": "neutral", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "11px", "actorFontSize": "11px", "noteFontSize": "10px", "messageFontSize": "10px"}}}%%
 flowchart TD
     A[Bank statement PDF] --> B[Extract raw text with pypdf]
     B --> C[Model writes a Python
