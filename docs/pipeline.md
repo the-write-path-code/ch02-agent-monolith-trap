@@ -5,6 +5,7 @@ Two diagrams for the chapter. The first shows the pipeline as built. The second 
 ## How a statement flows through the pipeline
 
 ```mermaid
+%%{init: {"theme": "neutral", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "11px", "actorFontSize": "11px", "noteFontSize": "10px", "messageFontSize": "10px"}}}%%
 flowchart TD
     A[Bank or card statement PDF] --> B[Docling DocumentConverter]
     B --> C{Any tables detected?}
@@ -26,6 +27,7 @@ The date-marker count in step G comes from a second, independent pass over the P
 Against a synthetic sample statement, this pipeline works cleanly end to end. Against a real six-page Citi credit card statement, it extracted 13 of 14 transactions correctly. Here is why:
 
 ```mermaid
+%%{init: {"theme": "neutral", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "11px", "actorFontSize": "11px", "noteFontSize": "10px", "messageFontSize": "10px"}}}%%
 flowchart LR
     subgraph Page 3 of the statement
         H1["Two-line column header:
