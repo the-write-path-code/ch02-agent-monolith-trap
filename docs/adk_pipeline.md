@@ -7,6 +7,7 @@ This rebuilds the same mixed pipeline from `docs/pipeline.md` inside Google's Ag
 `adk_pipeline/tools.py` wraps the Docling parser as a plain Python function. `adk_pipeline/pipeline.py` calls that function directly, before any agent runs, rather than wrapping it as a third agent in the chain. There's exactly one correct way to parse a given file; no reasoning or tool-selection decision is involved. Letting a model decide whether or how to call the parser would reintroduce the exact risk this whole chapter argues against removing. Only the categorizer and reporter are real `Agent` instances, since categorization and summarization are the parts that genuinely benefit from reasoning over already-structured data.
 
 ```mermaid
+%%{init: {"theme": "neutral", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "11px", "actorFontSize": "11px", "noteFontSize": "10px", "messageFontSize": "10px"}}}%%
 flowchart LR
     subgraph Ingestion["Document Ingestion & Session Setup"]
         direction TB
