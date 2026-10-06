@@ -2,7 +2,7 @@
 
 Companion code for *Building Safe Agentic AI for Enterprise Systems* by Mohit Aggarwal.
 
-This repository compares three approaches to bank-statement processing. It starts with a single-model loop that writes, runs, and repairs its own parser. It then moves document ingestion into a deterministic Docling pipeline and uses Google Agent Development Kit (ADK) only after parsing has produced structured transaction records.
+This repository compares three approaches to bank-statement processing. It starts with a single-model loop that writes, runs, and repairs its own parser. It then moves document ingestion into a deterministic Docling pipeline and uses Google Agent Development Kit (ADK) only after parsing has produced structured transaction records. You can also explore the chapter's [interactive workflow diagrams](#architecture-and-workflow-diagrams) directly in your browser.
 
 The chapter's argument is architectural. A model should not be responsible for document interpretation, code generation, code recovery, correctness assessment, and downstream reporting in one context window. Each responsibility needs a boundary that can be inspected and tested independently.
 
@@ -207,7 +207,11 @@ uv run pytest
 ├── main.py                            # Deterministic parser entry point
 ├── deterministic_pipeline/            # Section 2.3 implementation
 ├── adk_pipeline/                      # Section 2.4 workflow
-├── docs/
+├── workflow/                          # Workflow documentation and interactive HTML diagrams
+│   ├── 01_monolith_complexity_loop.html
+│   ├── 02_deterministic_pipeline.html
+│   ├── 03_table_detection_failures.html
+│   ├── 04_adk_sequential_workflow.html
 │   ├── monolith_experiment.md         # Benchmark design and recorded results
 │   ├── pipeline.md                    # Deterministic parsing flow and limits
 │   └── adk_pipeline.md                # ADK architecture and API notes
@@ -218,13 +222,17 @@ uv run pytest
     └── test.yml                       # Deterministic parser smoke test
 ```
 
-## Architecture Diagrams and Supporting Documents
+<a id="architecture-and-workflow-diagrams"></a>
+## Architecture and Workflow Diagrams
 
-Read these documents alongside Chapter 2:
+The `workflow/` directory contains interactive HTML diagrams alongside supporting Markdown documents (`monolith_experiment.md`, `pipeline.md`, and `adk_pipeline.md`) that detail the benchmark design, deterministic parsing flow, and ADK integration explored in Chapter 2:
 
-- `docs/monolith_experiment.md` explains the controlled benchmark, scoring criteria, and recorded 15-run results.
-- `docs/pipeline.md` shows the deterministic parsing stages and documents the dense-statement failure.
-- `docs/adk_pipeline.md` explains why parsing remains outside the agent workflow and how structured records move into categorization and reporting.
+- [`01_monolith_complexity_loop.html`](https://the-write-path-code.github.io/ch02-agent-monolith-trap/workflow/01_monolith_complexity_loop.html) shows the single-model write-execute-repair loop and its degradation under layout complexity.
+- [`02_deterministic_pipeline.html`](https://the-write-path-code.github.io/ch02-agent-monolith-trap/workflow/02_deterministic_pipeline.html) shows the deterministic Docling ingestion pipeline and independent text-layer verification.
+- [`03_table_detection_failures.html`](https://the-write-path-code.github.io/ch02-agent-monolith-trap/workflow/03_table_detection_failures.html) shows the three silent failure modes (structural merge, silent drop, cell misalignment) on dense statements.
+- [`04_adk_sequential_workflow.html`](https://the-write-path-code.github.io/ch02-agent-monolith-trap/workflow/04_adk_sequential_workflow.html) shows the post-parse sequential agent workflow in Google ADK with clean session state handoffs.
+
+The interactive `.html` files in `workflow/` can be opened directly in your browser using the links above (hosted via GitHub Pages with pan, zoom, dark/light theme, and animation support), or opened locally in any modern browser. The accompanying Markdown documents in `workflow/` render the original Mermaid diagrams directly on GitHub.
 
 ## Safety and Operational Limits
 
